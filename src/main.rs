@@ -1,109 +1,85 @@
-// use std::io;
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
+use std::str::FromStr;
 
-// fn main() {
-//     println!("Kalkulator Test Rust");
+fn main() {
+    println!("Solana Order Example");
+    println!("====================\n");
 
-//     // Ambil Angka
-//     println!(
-//         "Masukkan angka pertama : "
-//     );
-//     let mut input1 = String::new();
-//     io::stdin()
-//         .read_line(&mut input1)
-//         .expect("Gagal membaca input");
-//     let angka1: f64 = input1.trim().parse().expect("input tidak valid");
+    // Connect to Solana devnet
+    let rpc_url = "https://api.devnet.solana.com";
+    let client = RpcClient::new_with_commitment(rpc_url.to_string(), CommitmentConfig::confirmed());
 
-//     // Ambil Angka kedua
-//     println!(
-//         "Masukkan angka kedua : "
-//     );
-//     let mut input2 = String::new();
-//     io::stdin()
-//         .read_line(&mut input2)
-//         .expect("Gagal membaca input");
-//     let angka2: f64 = input2.trim().parse().expect("input tidak valid");
+    // Create a keypair (in production, load from file)
+    let payer = Keypair::new();
+    println!("Payer Public Key: {}", payer.pubkey());
 
-//     //ambil operator
-//     println!("Masukkan operator (+, -, *, /): ");
-//     let mut operator = String::new();
-//     io::stdin()
-//         .read_line(&mut operator)
-//         .expect("Gagal membaca input");
-//     let operator = operator.trim();
-
-//     // Hitung hasil
-//     let hasil = match operator {
-//         "+" => angka1 + angka2,
-//         "-" => angka1 - angka2,
-//         "*" => angka1 * angka2,
-//         "/" => {
-//             if angka2 == 0.0 {
-//                 println!("Error: Pembagian dengan nol tidak diperbolehkan.");
-//                 return;
-//             }
-//             angka1 / angka2
-//         }
-//         _ => {
-//             println!("Operator tidak valid. Gunakan salah satu dari +, -, *, /.");
-//             return;
-//         }
-//     };
-
-//     // Tampilkan hasil
-//     println!(
-//         "Hasil dari {} {} {} = {}",
-//         angka1, operator, angka2, hasil
-//     );
-//     println!("Terima kasih telah menggunakan Kalkulator Test Rust!");
-//     println!("Sampai jumpa lagi! 😊");
-// }
-
-// fn main (){
-//     let mut x = 5;
-//     println!("Nilai x adalah: {}", x);
-//     x = 10;
-//     println!("Nilai x setelah diubah adalah: {}", x);
-// }
-
-// fn main(){
-//     for i in 1..=10 {
-//         println!("Angka: {}", i);
-//     }
-// }
-
-// fn main(){
-//     let x = 5;
-//     println!("Nilai x adalah: {}", x);
-//     x = 6;
-// }
-
-// fn main(){
-//     let mut x = 5;
-//     println!("Nilai x adalah: {}", x);
-
-//     x = 6;
-//     println!("Nilai x setelah diubah adalah: {}", x);
-// }
-
-fn main(){
-    let mut saldo = 100_000;
-
-    println!("Saldo awal: {}", saldo);
+    // Example: Create an order instruction
+    // This is a simplified example - actual order programs vary
+    let program_id = Pubkey::from_str("YourProgramIdHere111111111111111111111111111").unwrap();
     
-    saldo = saldo + 50_000;
-    println!("Saldo setelah penambahan: {}", saldo);
+    // Order data structure (example)
+    let order_data = create_order_data(
+        100.0,  // price
+        10.0,   // quantity
+        true,   // is_buy
+    );
 
-    saldo = saldo - 30_000;
-    println!("Saldo setelah pengurangan: {}", saldo);
+    // Create instruction
+    let instruction = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer.pubkey(), true),
+            // Add other required accounts here
+        ],
+        data: order_data,
+    };
 
-    saldo = saldo * 2;
-    println!("Saldo setelah penggandaan: {}", saldo);
+    println!("Order created:");
+    println!("  Price: 100.0");
+    println!("  Quantity: 10.0");
+    println!("  Type: Buy");
+    println!("\nNote: This is a template. Replace program_id and accounts with actual values.");
 
-    if saldo >= 200_000 {
-        saldo = saldo / 2;
-        println!("Saldo setelah pembagian: {}", saldo);
-    } else {
-        println!("Saldo tidak cukup untuk pembagian.");
+    // Uncomment to send transaction (requires funded account)
+    /*
+    let recent_blockhash = client.get_latest_blockhash().unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        recent_blockhash,
+    );
+
+    match client.send_and_confirm_transaction(&transaction) {
+        Ok(signature) => println!("Transaction successful: {}", signature),
+        Err(e) => println!("Transaction failed: {}", e),
     }
-    println!("Saldo akhir: {}", saldo);
+    */
+}
+
+fn create_order_data(price: f64, quantity: f64, is_buy: bool) -> Vec<u8> {
+    // Example order data serialization
+    // In production, use borsh or bincode for proper serialization
+    let mut data = Vec::new();
+    
+    // Instruction discriminator (example: 0 for place order)
+    data.push(0);
+    
+    // Add price (as u64, scaled by 1e6 for decimals)
+    data.extend_from_slice(&((price * 1_000_000.0) as u64).to_le_bytes());
+    
+    // Add quantity (as u64, scaled by 1e6 for decimals)
+    data.extend_from_slice(&((quantity * 1_000_000.0) as u64).to_le_bytes());
+    
+    // Add order side (1 for buy, 0 for sell)
+    data.push(if is_buy { 1 } else { 0 });
+    
+    data
 }
